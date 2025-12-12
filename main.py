@@ -1,26 +1,32 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Depends
+from sqlmodel import Session
+from models import User
+from database import create_db_and_tables, get_session, engine
+from security import get_password_hash
 from pydantic import BaseModel
-from security import get_password_hash, verify_password 
 
-app = FastAPI(title="Secure AI Vault")
+from contextlib import asynccontextmanager
 
-# The model that describes what kind of data a user sends.
-class UserSchema(BaseModel):
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    create_db_and_tables()
+    yield
+
+app = FastAPI(lifespan=lifespan, title="Secure AI Vault")
+
+class UserCreate(BaseModel):
     username: str
     password: str
 
-@app.get("/")
-def home():
-    return {"message": "System Active", "version": "2.0"}
-
-# Where to create a new user (Signup)
 @app.post("/signup")
-def signup(user: UserSchema):
-    # Here we don't take the password directly. We hash it.
+def signup(user: UserCreate, session: Session = Depends(get_session)):
+    
     hashed_pass = get_password_hash(user.password)
     
-    return {
-        "username": user.username,
-        "saved_password_hash": hashed_pass, # We can't seem to read this.
-        "msg": "User created securely!"
-    }
+    new_user = User(username=user.username, password_hash=hashed_pass)
+    
+    session.add(new_user)
+    session.commit()
+    session.refresh(new_user)
+    
+    return {"message": "User Saved to DB! ", "user_id": new_user.id}

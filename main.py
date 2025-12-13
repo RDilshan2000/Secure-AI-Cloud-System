@@ -1,11 +1,13 @@
-from fastapi import FastAPI, Depends, HTTPException
-from sqlmodel import Session
+from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
+from sqlmodel import Session, select
 from models import User
 from database import create_db_and_tables, get_session
-from security import get_password_hash
+from security import get_password_hash, verify_password
+from auth import create_access_token 
+from ai_engine import summarize_text
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
-from ai_engine import summarize_text
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -13,6 +15,8 @@ async def lifespan(app: FastAPI):
     yield
 
 app = FastAPI(lifespan=lifespan, title="Secure AI Vault")
+
+oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 class UserCreate(BaseModel):
     username: str
@@ -23,22 +27,35 @@ class NoteRequest(BaseModel):
 
 @app.get("/")
 def home():
-    return {"message": "AI System Active"}
+    return {"message": "System Active 🧠"}
 
 @app.post("/signup")
 def signup(user: UserCreate, session: Session = Depends(get_session)):
+    existing_user = session.exec(select(User).where(User.username == user.username)).first()
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Username already registered")
+        
     hashed_pass = get_password_hash(user.password)
     new_user = User(username=user.username, password_hash=hashed_pass)
     session.add(new_user)
     session.commit()
     return {"message": "User Saved!", "user_id": new_user.id}
 
+@app.post("/token")
+def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
+    user = session.exec(select(User).where(User.username == form_data.username)).first()
+    
+    if not user or not verify_password(form_data.password, user.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Incorrect username or password",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    access_token = create_access_token(data={"sub": user.username})
+    return {"access_token": access_token, "token_type": "bearer"}
+
 @app.post("/analyze_note")
 def analyze_note(note: NoteRequest):
     summary = summarize_text(note.content)
-    
-    return {
-        "original_length": len(note.content),
-        "ai_summary": summary,
-        "status": "Analyzed by AI"
-    }
+    return {"ai_summary": summary}

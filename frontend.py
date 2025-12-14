@@ -75,7 +75,7 @@ st.markdown("""
     """, unsafe_allow_html=True)
 
 # Backend URL
-API_URL = "http://127.0.0.1:8000"
+API_URL = "https://secure-ai-cloud-system.onrender.com"
 
 # Session State
 if "access_token" not in st.session_state:

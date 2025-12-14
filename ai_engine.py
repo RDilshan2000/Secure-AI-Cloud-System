@@ -1,7 +1,12 @@
-from transformers import pipeline
+import requests
 
-ai_summarizer = pipeline("summarization", model="sshleifer/distilbart-cnn-12-6")
+# Hugging Face Public API
+API_URL = "https://api-inference.huggingface.co/models/facebook/bart-large-cnn"
 
 def summarize_text(text: str):
-    result = ai_summarizer(text, max_length=60, min_length=10, do_sample=False)
-    return result[0]['summary_text']
+    try:
+        
+        response = requests.post(API_URL, json={"inputs": text})
+        return response.json()[0]['summary_text']
+    except:
+        return "Error: Could not connect to AI Brain. Try again later."

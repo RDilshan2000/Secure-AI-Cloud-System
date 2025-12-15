@@ -1,4 +1,3 @@
-# UPDATE FORCE V1
 import requests
 import os
 
@@ -10,18 +9,21 @@ def summarize_text(text: str):
     
     try:
         response = requests.post(API_URL, headers=headers, json={"inputs": text})
-        result = response.json()
         
+        
+        if response.status_code != 200:
+            
+            return f"AI Error ({response.status_code}): {response.text}"
+            
+        
+        result = response.json()
         
         if isinstance(result, list):
             return result[0]['summary_text']
-        
-        
-        if isinstance(result, dict) and "error" in result:
+        elif isinstance(result, dict) and 'error' in result:
              return f"AI Says: {result['error']}"
+        else:
+             return f"Unknown Reply: {result}"
              
-        
-        return f"Unknown Reply: {result}"
-        
     except Exception as e:
-        return f"System Error: {str(e)}"
+        return f"Code Crash: {str(e)}"

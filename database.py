@@ -1,7 +1,7 @@
 from sqlmodel import SQLModel, create_engine, Session
 
 # 1. Create Database Name
-sqlite_file_name = "database.db"
+sqlite_file_name = "my_cloud_vault.db"
 sqlite_url = f"sqlite:///{sqlite_file_name}"
 
 engine = create_engine(sqlite_url, connect_args={"check_same_thread": False})

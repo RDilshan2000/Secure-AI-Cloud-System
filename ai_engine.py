@@ -1,7 +1,7 @@
 import requests
 import os
 
-API_URL = "https://router.huggingface.co/models/facebook/bart-large-cnn"
+API_URL = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn"
 API_KEY = os.getenv("HUGGINGFACE_API_KEY")
 
 def summarize_text(text: str):

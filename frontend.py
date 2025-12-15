@@ -150,7 +150,8 @@ elif menu == "📝 Signup":
                     st.balloons()
                     st.success("Identity Created Successfully! Please Login.")
                 else:
-                    st.warning("Username already exists in the vault.")
+                    st.error(f"Error Details: {response.status_code}")
+                    st.write(response.text)
             except ConnectionError:
                 st.error("Backend Offline")
 

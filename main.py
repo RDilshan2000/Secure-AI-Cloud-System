@@ -93,3 +93,9 @@ def analyze_text(request: AnalysisRequest, session: Session = Depends(get_sessio
     session.commit()
     
     return {"summary": summary}
+
+@app.get("/history/{username}")
+def get_history(username: str, session: Session = Depends(get_session)):
+    statement = select(ScanHistory).where(ScanHistory.username == username)
+    results = session.exec(statement).all()
+    return results

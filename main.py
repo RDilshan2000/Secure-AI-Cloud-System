@@ -1,7 +1,7 @@
-from fastapi import FastAPI, Depends, HTTPException, status
+from fastapi import FastAPI, Depends, HTTPException, status, Request
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Session, select
-from models import User, ScanHistory  
+from models import User, ScanHistory
 from database import create_db_and_tables, get_session
 from security import get_password_hash, verify_password
 from auth import create_access_token, SECRET_KEY, ALGORITHM
@@ -10,12 +10,21 @@ from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from jose import jwt, JWTError
 
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     create_db_and_tables()
     yield
 
 app = FastAPI(lifespan=lifespan, title="Secure AI Vault")
+
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
@@ -46,7 +55,6 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
         raise credentials_exception
     return user
 
-
 @app.get("/")
 def home():
     return {"message": "System Active 🧠"}
@@ -76,17 +84,20 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = D
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
+# --- AI & History Section ---
 
 @app.post("/analyze")
-def analyze_text(request: AnalysisRequest, session: Session = Depends(get_session)):
-    summary = summarize_text(request.text)
+@limiter.limit("5/minute") 
+def analyze_text(request: Request, analysis_request: AnalysisRequest, session: Session = Depends(get_session)):
+    
+    summary = summarize_text(analysis_request.text)
     
     if "AI Error" in summary or "Code Crash" in summary:
         return {"summary": summary}
         
     new_scan = ScanHistory(
-        username=request.username,
-        original_text=request.text,
+        username=analysis_request.username,
+        original_text=analysis_request.text,
         summary_text=summary
     )
     session.add(new_scan)

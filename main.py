@@ -1,7 +1,7 @@
 from fastapi import FastAPI, Depends, HTTPException, status
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from sqlmodel import Session, select
-from models import User
+from models import User, ScanHistory  
 from database import create_db_and_tables, get_session
 from security import get_password_hash, verify_password
 from auth import create_access_token, SECRET_KEY, ALGORITHM
@@ -23,8 +23,9 @@ class UserCreate(BaseModel):
     username: str
     password: str
 
-class NoteRequest(BaseModel):
-    content: str
+class AnalysisRequest(BaseModel):
+    username: str
+    text: str
 
 async def get_current_user(token: str = Depends(oauth2_scheme), session: Session = Depends(get_session)):
     credentials_exception = HTTPException(
@@ -60,7 +61,7 @@ def signup(user: UserCreate, session: Session = Depends(get_session)):
     new_user = User(username=user.username, password_hash=hashed_pass)
     session.add(new_user)
     session.commit()
-    return {"message": "User Saved!", "user_id": new_user.id}
+    return {"message": "User Saved!", "user_id": new_user.username}
 
 @app.post("/token")
 def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = Depends(get_session)):
@@ -75,10 +76,20 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = D
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-@app.post("/analyze_note")
-def analyze_note(note: NoteRequest, current_user: User = Depends(get_current_user)):
-    summary = summarize_text(note.content)
-    return {
-        "user": current_user.username,
-        "ai_summary": summary
-    }
+
+@app.post("/analyze")
+def analyze_text(request: AnalysisRequest, session: Session = Depends(get_session)):
+    summary = summarize_text(request.text)
+    
+    if "AI Error" in summary or "Code Crash" in summary:
+        return {"summary": summary}
+        
+    new_scan = ScanHistory(
+        username=request.username,
+        original_text=request.text,
+        summary_text=summary
+    )
+    session.add(new_scan)
+    session.commit()
+    
+    return {"summary": summary}

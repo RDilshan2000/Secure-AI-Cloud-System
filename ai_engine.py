@@ -1,11 +1,12 @@
 import requests
+import os 
 
 
 API_URL_SUMMARY = "https://router.huggingface.co/hf-inference/models/facebook/bart-large-cnn"
 API_URL_SENTIMENT = "https://router.huggingface.co/hf-inference/models/distilbert-base-uncased-finetuned-sst-2-english"
 
-
-HEADERS = {"Authorization": "Bearer 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"}
+token = os.environ.get("HF_TOKEN")
+HEADERS = {"Authorization": f"Bearer {token}"}
 
 def summarize_text(text):
     payload = {"inputs": text, "parameters": {"max_length": 150, "min_length": 40}}
@@ -29,9 +30,7 @@ def detect_mood(text):
         response = requests.post(API_URL_SENTIMENT, headers=HEADERS, json=payload)
         result = response.json()
         
-        
         if isinstance(result, list) and len(result) > 0:
-            
             top_mood = result[0][0] 
             label = top_mood['label'] 
             score = round(top_mood['score'] * 100, 1) 

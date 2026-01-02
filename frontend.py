@@ -1,6 +1,7 @@
 import streamlit as st
 import requests
 
+
 API_URL = "https://secure-ai-cloud-system.onrender.com"  
 st.set_page_config(page_title="Secure AI Vault", page_icon="🛡️", layout="wide")
 
@@ -30,7 +31,6 @@ with st.sidebar:
     
     if st.session_state.token:
         st.success(f"🟢 Online: {st.session_state.username}")
-        
         
         menu_options = ["🤖 AI Analyzer", "📜 Past Scans", "👮‍♂️ Admin Panel", "👤 My Profile"]
         page = st.radio("Navigate", menu_options)
@@ -135,6 +135,7 @@ elif page == "🤖 AI Analyzer":
         else:
             st.info("Waiting for input...")
 
+
 elif page == "📜 Past Scans":
     st.header("🗄️ Scan History Archive")
     headers = {"Authorization": f"Bearer {st.session_state.token}"}
@@ -161,7 +162,6 @@ elif page == "👮‍♂️ Admin Panel":
     
     headers = {"Authorization": f"Bearer {st.session_state.token}"}
     
-    
     if st.button("🔄 Refresh User List"):
         st.rerun()
         
@@ -171,23 +171,22 @@ elif page == "👮‍♂️ Admin Panel":
             users = res.json()
             st.write(f"**Total Users:** {len(users)}")
             
-            
             for user in users:
-                c1, c2, c3 = st.columns([3, 2, 1])
+                
+                c1, c2 = st.columns([4, 1])
+                
                 with c1:
                     st.markdown(f"<div class='user-card'>👤 <b>{user['username']}</b></div>", unsafe_allow_html=True)
+                
                 with c2:
-                    st.caption(f"ID: {user['id']}")
-                with c3:
-                    
                     if user['username'] != st.session_state.username:
                         if st.button("🗑️ Delete", key=f"del_{user['username']}"):
                             del_res = requests.delete(f"{API_URL}/users/{user['username']}", headers=headers)
                             if del_res.status_code == 200:
-                                st.success(f"User {user['username']} Deleted!")
+                                st.success(f"User Deleted!")
                                 st.rerun()
                             else:
-                                st.error("Failed to delete")
+                                st.error("Failed")
                     else:
                         st.caption("(You)")
         else:
@@ -195,7 +194,7 @@ elif page == "👮‍♂️ Admin Panel":
     except Exception as e:
         st.error(f"Error: {e}")
 
-# --- PROFILE ---
+
 elif page == "👤 My Profile":
     st.header("User Profile")
     st.markdown(f"**Officer Name:** {st.session_state.username}")

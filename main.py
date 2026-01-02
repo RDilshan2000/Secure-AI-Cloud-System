@@ -5,7 +5,7 @@ from models import User, ScanHistory
 from database import create_db_and_tables, get_session
 from security import get_password_hash, verify_password
 from auth import create_access_token, SECRET_KEY, ALGORITHM
-from ai_engine import summarize_text
+from ai_engine import summarize_text, detect_mood
 from pydantic import BaseModel
 from contextlib import asynccontextmanager
 from jose import jwt, JWTError
@@ -84,7 +84,6 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = D
     access_token = create_access_token(data={"sub": user.username})
     return {"access_token": access_token, "token_type": "bearer"}
 
-# --- AI & History Section ---
 
 @app.post("/analyze")
 @limiter.limit("5/minute") 
@@ -104,6 +103,21 @@ def analyze_text(request: Request, analysis_request: AnalysisRequest, session: S
     session.commit()
     
     return {"summary": summary}
+
+@app.post("/sentiment")
+@limiter.limit("5/minute")
+def analyze_sentiment(request: Request, analysis_request: AnalysisRequest, session: Session = Depends(get_session)):
+    mood = detect_mood(analysis_request.text)
+    
+    new_scan = ScanHistory(
+        username=analysis_request.username,
+        original_text=analysis_request.text,
+        summary_text=f"Mood Analysis: {mood}"
+    )
+    session.add(new_scan)
+    session.commit()
+    
+    return {"result": mood}
 
 @app.get("/history/{username}")
 def get_history(username: str, session: Session = Depends(get_session)):

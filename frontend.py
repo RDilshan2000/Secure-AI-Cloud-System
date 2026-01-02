@@ -2,7 +2,7 @@ import streamlit as st
 import requests
 
 # --- Settings ---
-API_URL = "https://secure-ai-cloud-system.onrender.com"  # ඔයාගේ Backend Link එක
+API_URL = "https://secure-ai-cloud-system.onrender.com"  
 st.set_page_config(page_title="Secure AI Vault", page_icon="🛡️", layout="wide")
 
 # --- Styles ---
@@ -11,8 +11,9 @@ st.markdown("""
     .stApp {background-color: #0e1117; color: white;}
     .stTextInput > div > div > input {background-color: #262730; color: white;}
     .stTextArea > div > div > textarea {background-color: #262730; color: white;}
-    .stButton > button {background-color: #00ff41; color: black; font-weight: bold;}
+    .stButton > button {width: 100%; border-radius: 5px; font-weight: bold;}
     .success-box {padding: 1rem; background-color: #00441b; border-left: 5px solid #00ff41; border-radius: 5px;}
+    .mood-box {padding: 1rem; background-color: #1a237e; border-left: 5px solid #536dfe; border-radius: 5px;}
     </style>
 """, unsafe_allow_html=True)
 
@@ -87,54 +88,66 @@ elif page == "🤖 AI Analyzer":
     
     with col1:
         st.subheader("📥 Source Data")
-        input_text = st.text_area("Paste confidential notes here...", height=300)
-        if st.button("⚡ Process Data"):
-            if input_text:
-                headers = {"Authorization": f"Bearer {st.session_state.token}"}
-                payload = {"username": st.session_state.username, "text": input_text}
-                
-                with st.spinner("Encrypting & Analyzing..."):
-                    try:
-                        res = requests.post(f"{API_URL}/analyze", json=payload, headers=headers)
-                        if res.status_code == 200:
-                            summary = res.json().get("summary")
-                            st.session_state.latest_summary = summary
-                        else:
-                            st.error(f"Error: {res.status_code}")
-                    except Exception as e:
-                        st.error(f"Connection Error: {e}")
+        input_text = st.text_area("Paste text here...", height=300)
+        
+        btn_col1, btn_col2 = st.columns(2)
+        
+        with btn_col1:
+            if st.button("⚡ Summarize"):
+                if input_text:
+                    headers = {"Authorization": f"Bearer {st.session_state.token}"}
+                    payload = {"username": st.session_state.username, "text": input_text}
+                    with st.spinner("Summarizing..."):
+                        try:
+                            res = requests.post(f"{API_URL}/analyze", json=payload, headers=headers)
+                            if res.status_code == 200:
+                                st.session_state.result_type = "summary"
+                                st.session_state.result_data = res.json().get("summary")
+                            else:
+                                st.error(f"Error: {res.status_code}")
+                        except Exception as e:
+                            st.error(f"Error: {e}")
+
+        with btn_col2:
+            if st.button("🎭 Analyze Mood"):
+                if input_text:
+                    headers = {"Authorization": f"Bearer {st.session_state.token}"}
+                    payload = {"username": st.session_state.username, "text": input_text}
+                    with st.spinner("Detecting Emotions..."):
+                        try:
+                            res = requests.post(f"{API_URL}/sentiment", json=payload, headers=headers)
+                            if res.status_code == 200:
+                                st.session_state.result_type = "mood"
+                                st.session_state.result_data = res.json().get("result")
+                            else:
+                                st.error(f"Error: {res.status_code}")
+                        except Exception as e:
+                            st.error(f"Error: {e}")
 
     with col2:
-        st.subheader("📤 Intelligence Output")
-        if "latest_summary" in st.session_state:
-            st.markdown(f"""
-                <div class="success-box">
-                    <h4>✨ Executive Summary:</h4>
-                    <p>{st.session_state.latest_summary}</p>
-                </div>
-            """, unsafe_allow_html=True)
+        st.subheader("📤 Output Result")
+        if "result_data" in st.session_state:
+            if st.session_state.result_type == "summary":
+                st.markdown(f"""<div class="success-box"><h4>📝 Summary:</h4><p>{st.session_state.result_data}</p></div>""", unsafe_allow_html=True)
+            elif st.session_state.result_type == "mood":
+                st.markdown(f"""<div class="mood-box"><h4>🎭 Detected Mood:</h4><h2>{st.session_state.result_data}</h2></div>""", unsafe_allow_html=True)
         else:
-            st.info("Waiting for input data...")
+            st.info("Waiting for input...")
 
 elif page == "📜 Past Scans":
     st.header("🗄️ Scan History Archive")
-    st.caption(f"Showing protected records for: {st.session_state.username}")
-    
     headers = {"Authorization": f"Bearer {st.session_state.token}"}
     try:
-        # Backend එකෙන් History එක ඉල්ලනවා
         res = requests.get(f"{API_URL}/history/{st.session_state.username}", headers=headers)
-        
         if res.status_code == 200:
             history_data = res.json()
-            
             if not history_data:
-                st.info("No records found in the vault.")
+                st.info("No records found.")
             else:
                 for item in reversed(history_data):
-                    with st.expander(f"🕒 {item['timestamp']} - Summary"):
-                        st.success(f"**AI Summary:** {item['summary_text']}")
-                        st.code(f"Original: {item['original_text']}", language="text")
+                    with st.expander(f"🕒 {item['timestamp']} - Record"):
+                        st.info(f"**Result:** {item['summary_text']}")
+                        st.text(f"Original: {item['original_text']}")
         else:
             st.error("Failed to fetch history.")
     except Exception as e:
@@ -143,5 +156,5 @@ elif page == "📜 Past Scans":
 elif page == "👤 My Profile":
     st.header("User Profile")
     st.markdown(f"**Officer Name:** {st.session_state.username}")
-    st.markdown("**Security Clearance:** Level 5 (Top Secret)")
-    st.image("https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDdtYmxuYmF6YjFqaXJ6b2F6YjFqaXJ6b2F6YjFqaXJ6b2F6YjFqaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/YNX1JtT1hI16J7r2r0/giphy.gif", width=300)
+    st.markdown("**Security Clearance:** Level 5")
+    st.image("https://media3.giphy.com/media/v1.Y2lkPTc5MGI3NjExcDdtYmxuYmF6YjFqaXJ6b2F6YjFqaXJ6b2F6YjFqaSZlcD12MV9pbnRlcm5hbF9naWZfYnlfaWQmY3Q9Zw/YNX1JtT1hI16J7r2r0/giphy.gif", width=300)

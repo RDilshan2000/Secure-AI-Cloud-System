@@ -5,7 +5,7 @@ API_URL_SUMMARY = "https://router.huggingface.co/hf-inference/models/facebook/ba
 API_URL_SENTIMENT = "https://router.huggingface.co/hf-inference/models/distilbert-base-uncased-finetuned-sst-2-english"
 
 
-HEADERS = {"Authorization": "Bearer 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"}
+HEADERS = {"Authorization": "Bearer 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"}
 
 def summarize_text(text):
     payload = {"inputs": text, "parameters": {"max_length": 150, "min_length": 40}}

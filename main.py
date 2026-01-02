@@ -59,6 +59,8 @@ async def get_current_user(token: str = Depends(oauth2_scheme), session: Session
 def home():
     return {"message": "System Active 🧠"}
 
+
+
 @app.post("/signup")
 def signup(user: UserCreate, session: Session = Depends(get_session)):
     existing_user = session.exec(select(User).where(User.username == user.username)).first()
@@ -85,15 +87,31 @@ def login(form_data: OAuth2PasswordRequestForm = Depends(), session: Session = D
     return {"access_token": access_token, "token_type": "bearer"}
 
 
+@app.get("/users")
+def get_all_users(session: Session = Depends(get_session)):
+    
+    users = session.exec(select(User)).all()
+    return users
+
+@app.delete("/users/{username}")
+def delete_user(username: str, session: Session = Depends(get_session)):
+    
+    user = session.exec(select(User).where(User.username == username)).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+    
+    session.delete(user)
+    session.commit()
+    return {"message": f"User {username} deleted successfully"}
+
+
+
 @app.post("/analyze")
 @limiter.limit("5/minute") 
 def analyze_text(request: Request, analysis_request: AnalysisRequest, session: Session = Depends(get_session)):
-    
     summary = summarize_text(analysis_request.text)
     
-    if "AI Error" in summary or "Code Crash" in summary:
-        return {"summary": summary}
-        
+    
     new_scan = ScanHistory(
         username=analysis_request.username,
         original_text=analysis_request.text,
